@@ -1,130 +1,37 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Audio Input Bouncing Balls</title>
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            background-color: #111;
-        }
-        canvas {
-            display: block;
-        }
-        .ball {
-            position: absolute;
-            border-radius: 50%;
-            background-color: rgba(255, 0, 0, 0.7);
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Echo Effect</title>
 </head>
 <body>
-    <canvas id="canvas"></canvas>
-    <script>
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
-        let balls = [];
-        let audioContext, analyser, microphone, source;
+  <h1>Live Singing with Echo Effect</h1>
+  <button id="startButton">Start Echo</button>
+  <p>Allow microphone access to test the echo effect.</p>
 
-        // Set canvas size
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+  <script>
+    const startButton = document.getElementById('startButton');
 
-        // Ball constructor
-        function Ball(x, y) {
-            this.x = x;
-            this.y = y;
-            this.radius = 30;
-            this.color = 'rgba(255, 0, 0, 0.7)';
-            this.xSpeed = Math.random() * 4 - 2;
-            this.ySpeed = Math.random() * 4 - 2;
-        }
+    startButton.addEventListener('click', async () => {
+      try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const source = audioContext.createMediaStreamSource(stream);
 
-        // Create balls
-        for (let i = 0; i < 10; i++) {
-            balls.push(new Ball(Math.random() * canvas.width, Math.random() * canvas.height));
-        }
+        const delay = audioContext.createDelay();
+        delay.delayTime.value = 0.5; // Adjust the delay time in seconds for the echo effect
 
-        // Update ball positions
-        function updateBalls(amplitude) {
-            for (let ball of balls) {
-                ball.x += ball.xSpeed;
-                ball.y += ball.ySpeed;
+        const gain = audioContext.createGain();
+        gain.gain.value = 0.6; // Control the volume of the echo
 
-                // Bounce off walls
-                if (ball.x + ball.radius > canvas.width || ball.x - ball.radius < 0) {
-                    ball.xSpeed *= -1;
-                }
-                if (ball.y + ball.radius > canvas.height || ball.y - ball.radius < 0) {
-                    ball.ySpeed *= -1;
-                }
-
-                // Adjust speed based on sound amplitude
-                ball.xSpeed += (Math.random() * 2 - 1) * amplitude;
-                ball.ySpeed += (Math.random() * 2 - 1) * amplitude;
-            }
-        }
-
-        // Draw balls
-        function drawBalls() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            for (let ball of balls) {
-                ctx.beginPath();
-                ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
-                ctx.fillStyle = ball.color;
-                ctx.fill();
-                ctx.closePath();
-            }
-        }
-
-        // Setup audio context for microphone input
-        function setupAudio() {
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            analyser = audioContext.createAnalyser();
-            analyser.fftSize = 256;
-
-            navigator.mediaDevices.getUserMedia({ audio: true })
-                .then(stream => {
-                    source = audioContext.createMediaStreamSource(stream);
-                    source.connect(analyser);
-                    analyser.connect(audioContext.destination);
-                    visualizeAudio();
-                })
-                .catch(err => {
-                    console.log('Error accessing microphone: ', err);
-                });
-        }
-
-        // Visualize the audio input
-        function visualizeAudio() {
-            const bufferLength = analyser.frequencyBinCount;
-            const dataArray = new Uint8Array(bufferLength);
-
-            function draw() {
-                analyser.getByteFrequencyData(dataArray);
-
-                // Calculate the amplitude of the sound
-                let totalAmplitude = 0;
-                for (let i = 0; i < bufferLength; i++) {
-                    totalAmplitude += dataArray[i];
-                }
-                let averageAmplitude = totalAmplitude / bufferLength;
-                let normalizedAmplitude = averageAmplitude / 255;
-
-                // Update ball positions based on sound amplitude
-                updateBalls(normalizedAmplitude * 10);
-                drawBalls();
-
-                requestAnimationFrame(draw);
-            }
-            draw();
-        }
-
-        // Initialize
-        setupAudio();
-    </script>
+        source.connect(delay);
+        delay.connect(gain);
+        gain.connect(audioContext.destination);
+      } catch (error) {
+        console.error('Error accessing microphone:', error);
+      }
+    });
+  </script>
 </body>
 </html>
